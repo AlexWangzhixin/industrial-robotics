@@ -1,0 +1,100 @@
+clear all
+close all
+volume_length = 1.5;
+Ts = eye(4);
+% set angles in home configuration all joint angles = 0 degrees
+theta1 = deg2rad(40);
+theta2 = deg2rad(20);
+% ---------------------
+theta1 = deg2rad(40);
+theta2 = deg2rad(20);
+theta_list= [theta1; theta2]
+
+L1 = 0.5;
+L2 = 0.5;
+M = RpToTrans(eye(3), [L1+L2 0 0]');
+M1 = RpToTrans(eye(3), [0 0 0]');
+M2 = RpToTrans(eye(3), [L1 0 0]');
+omghat1 = [0 0 1]';
+omghat2 = [0 0 1]';
+q1 = [0 0 0]';
+q2 = [L1 0 0]';
+vhat1 = -cross(omghat1,q1);
+vhat2 = -cross(omghat2,q2);
+S1 = [omghat1;vhat1];
+S2 = [omghat2;vhat2];
+S1mat = VecTose3(S1);
+S2mat = VecTose3(S2);
+S_list = [S1 S2];
+Tse = FKinSpace(M, S_list,theta_list);
+Ts2 = FKinSpace(M2, S_list(:,1),theta_list(1));
+Ts1 = M1;
+Tes = TransInv(Tse);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% compute space Jacobian in the twist
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Js = JacobianSpace(S_list, theta_list);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%    define joint velocities 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+dot_theta1 = deg2rad(45);
+dot_theta2 = deg2rad(30);
+dot_theta_list = [dot_theta1; dot_theta2];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% compute forward velocity kinematic in the twist
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Vs=Js*dot_theta_list;
+AdjointTes = Adjoint(Tes);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% transform the twist expressed wrt base frame into the twist expressed wrt
+% the end-effector frame for plotting purposes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Jb = AdjointTes*Js
+Vb = Jb*dot_theta_list;
+vb = Vb(4:6);
+[Re,de] = TransToRp(Tse);
+vb_s = Re*vb;
+Jb1 = Re*Jb(4:6,1);
+Jb2 = Re*Jb(4:6,2);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% compute manipulability ellipsoids
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+N=200;                              % in how many points we want to plot the end-effector velocites
+vb_s = zeros(N, 3);                 % matrix containing end-effector velocities for plotting
+A = 1;                            % arbitrary scaling factor for plotting the end-effector velocity
+for i=1:N
+    dot_theta1 = A*cos(2*pi*i/N); % define joint velocities map according to dot_theta1+dot_theta2=1 
+    dot_theta2 = A*sin(2*pi*i/N);
+    dot_theta_list = [dot_theta1; dot_theta2];
+    Vs = Js*dot_theta_list;
+    Vb = Jb*dot_theta_list;
+    vb = Vb(4:6);
+    [Re,de] = TransToRp(Tse);
+    vb_s(i,:) = Re*vb;
+end
+
+figure(2)
+plotvol(volume_length);
+x0=600;     % location of figure in the screen
+y0=200;     % location of figure in the screen
+width=400;  % width of figure
+height=400; % height of figure
+set(gcf,'position',[x0,y0,width,height])
+hold on
+view(0,90)
+trplot(Ts,'frame', 's','color','k','length', L2/2)
+trplot(Tse,'frame', 'e','color','r','length', L2/2)
+hold on
+plot3([0 Ts1(1,4)], [0 Ts1(2,4)], [0 Ts1(3,4)], 'k')
+plot3([Ts1(1,4) Ts2(1,4)], [Ts1(2,4) Ts2(2,4)], [Ts1(3,4) Ts2(3,4)],'k')
+plot3([Ts2(1,4) Tse(1,4)], [Ts2(2,4) Tse(2,4)], [Ts2(3,4) Tse(3,4)],'k')
+plot_sphere([0  0 0], L2/15)
+plot_sphere([Tse(1,4)  Tse(2,4) Tse(3,4)], L2/15)
+plot_sphere([Ts2(1,4)  Ts2(2,4) Ts2(3,4)], L2/15)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% plot manipulability ellipsoids
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for i=1:N
+    plot3([Tse(1,4) (Tse(1,4)+vb_s(i,1))],[Tse(2,4) (Tse(2,4)+vb_s(i,2))],[Tse(3,4) (Tse(3,4)+vb_s(i,3))], 'r.')
+end
