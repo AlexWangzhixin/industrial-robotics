@@ -1,0 +1,133 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{cite}
+\usepackage{geometry}
+\usepackage{float} % 优化图片位置
+\geometry{a4paper, margin=1in}
+
+\title{Industrial Robotics Assignment 2}
+\author{Name}
+\date{December 8, 2025}
+
+\begin{document}
+	
+	\maketitle
+	
+	\section*{Exercise 1: Kinematics Theory and Numerical Methods}
+	
+	\subsection*{1.1 Forward and Inverse Kinematics}
+	
+	\textbf{Forward Kinematics (FK)} is the process of calculating the position and orientation (pose) of the robot's end-effector relative to the base frame, given the joint values (angles for revolute joints, extensions for prismatic joints) \cite{source:4}.
+	Mathematically, for an open-chain robot, this is often expressed using the Product of Exponentials (PoE) formula:
+	\begin{equation}
+		\ T(\theta) = e^{[\mathcal{S}_1]\theta_1} e^{[\mathcal{S}_2]\theta_2} \dots e^{[\mathcal{S}_n]\theta_n} M
+	\end{equation}
+	where $\mathcal{S}_i$ are the screw axes in the space frame, $\theta_i$ are joint variables, and $M \in SE(3)$ is the home configuration of the end-effector.
+	
+	\textbf{Inverse Kinematics (IK)} is the reverse process: determining the required joint values $\theta = [\theta_1, \dots, \theta_n]^T$ to achieve a desired end-effector pose $T_{sd} \in SE(3)$ \cite{source:4}.
+	
+	\paragraph{Practical Examples:}
+	\begin{itemize}
+		\item \textbf{Forward Kinematics:} Used in trajectory monitoring and collision avoidance. For example, a robot controller must constantly calculate the position of the robot's elbow to ensure it does not hit a safety fence while painting a car \cite{source:4}.
+		\item \textbf{Inverse Kinematics:} Used in Pick-and-Place operations. If a camera detects a part at coordinates $(x, y, z)$ with a specific orientation, the robot must calculate the joint angles required to align its gripper with that specific target pose \cite{source:4}.
+	\end{itemize}
+	
+	\subsection*{1.2 Numerical Inverse Kinematics (Newton-Raphson Method)}
+	
+	For a general spatial manipulator, analytical solutions may not exist. We use numerical iterative methods, such as the Newton-Raphson method, to minimize the error between the current pose and the desired pose \cite{source:5}. The goal is to find $\theta$ such that $T_{sb}(\theta) = T_{sd}$.
+	
+	The algorithm proceeds as follows:
+	\begin{enumerate}
+		\item \textbf{Initialization:} Start with an initial guess $\theta_0$.
+		\item \textbf{Compute Forward Kinematics:} Calculate the current pose $T_{sb}(\theta_i)$.
+		\item \textbf{Compute Error Twist:} Calculate the error twist $\mathcal{V}_b$ in the body frame, which represents the transformation required to move from the current pose to the desired pose:
+		\begin{equation}
+			\ [\mathcal{V}_b] = \log(T_{sb}^{-1}(\theta_i) T_{sd})
+		\end{equation}
+		\item \textbf{Jacobian Computation:} Compute the body Jacobian $J_b(\theta_i)$.
+		\item \textbf{Update Step:} We solve the linear system $\mathcal{V}_b \approx J_b(\theta) \Delta \theta$ for $\Delta \theta$. Using the Moore-Penrose pseudoinverse (to handle singularities or redundancy):
+		\begin{equation}
+			\ \theta_{i+1} = \theta_i + J_b^\dagger(\theta_i) \mathcal{V}_b
+		\end{equation}
+		\item \textbf{Iteration:} Repeat steps 2-5 until $\|\mathcal{V}_b\| < \epsilon$ (tolerance) or maximum iterations are reached.
+	\end{enumerate}
+	
+	\subsection*{1.4 Singularities in IK}
+	There are configurations where the IK solver may fail to find a solution. These are known as \textbf{singularities}. At a singular configuration, the Jacobian matrix loses rank, meaning the robot loses one or more degrees of freedom in Cartesian space \cite{source:7}.
+	
+	For example, if a robot arm is fully extended (boundary singularity), it cannot move further outward. In this state, the requested velocity in the outward direction would theoretically require infinite joint velocities, causing the numerical solver to fail or oscillate.
+	
+	\section*{Exercise 2: Planar Rigid Body Motion}
+	
+	\subsection*{2.1 Position and Velocity of Point P}
+	
+	Given the setup in Figure 1, the body rotates about a fixed center $C = (L, L)$ with angular velocity $\dot{\theta} = 1$ rad/s. Point $P$ is attached to the body.
+	\begin{itemize}
+		\item Center of rotation in $\{s\}$: $\vec{p}_C = [L, L, 0]^T$.
+		\item Vector from Center to $P$ expressed in the Body Frame $\{b\}$: Since $P$ is the origin of $\{b\}$ and the center $C$ is at a distance $d$ along the body $y$-axis (from the geometry), the vector from Center to $P$ is not constant in $\{s\}$, but the distance is fixed.
+	\end{itemize}
+	
+	Alternatively, we can express the position directly. At $\theta=0$, $P$ is located at $(L, L-d)$. The vector from the center of rotation $(L,L)$ to $P$ is $[0, -d, 0]^T$. Applying the rotation matrix $R_z(\theta)$:
+	\begin{equation}
+		\ \vec{p}_P(\theta) = \vec{p}_C + R_z(\theta) \begin{bmatrix} 0 \\ -d \\ 0 \end{bmatrix} = \begin{bmatrix} L \\ L \\ 0 \end{bmatrix} + \begin{bmatrix} \cos\theta & -\sin\theta & 0 \\ \sin\theta & \cos\theta & 0 \\ 0 & 0 & 1 \end{bmatrix} \begin{bmatrix} 0 \\ -d \\ 0 \end{bmatrix}
+	\end{equation}
+	\begin{equation}
+		\ \vec{p}_P(\theta) = \begin{bmatrix} L + d\sin\theta \\ L - d\cos\theta \\ 0 \end{bmatrix}
+	\end{equation}
+	
+	The velocity $\vec{v}_P$ is the time derivative of the position:
+	\begin{equation}
+		\ \vec{v}_P = \frac{d}{dt} \vec{p}_P(\theta) = \begin{bmatrix} d \dot{\theta} \cos\theta \\ d \dot{\theta} \sin\theta \\ 0 \end{bmatrix}
+	\end{equation}
+	
+	\subsection*{2.2 Homogeneous Transformation Matrix $T_{sb}$}
+	
+	The orientation of frame $\{b\}$ relative to $\{s\}$ is a rotation about the $z$-axis by $\theta$. The origin of $\{b\}$ is located at point $P$.
+	\begin{equation}
+		\ T_{sb} = \begin{bmatrix} R_{sb} & \vec{p}_P \\ 0 & 1 \end{bmatrix} =
+		\ \begin{bmatrix}
+			\ \cos\theta & -\sin\theta & 0 & L + d\sin\theta \\ 
+			\ \sin\theta & \cos\theta & 0 & L - d\cos\theta \\ 
+			\ 0 & 0 & 1 & 0 \\ 
+			\ 0 & 0 & 0 & 1
+			\ \end{bmatrix}
+	\end{equation}
+	
+	\subsection*{2.3 Spatial and Body Twists}
+	
+	\textbf{Spatial Twist ($\mathcal{V}_s$):}
+	The spatial twist represents the generalized velocity of the body frame expressed in the fixed frame $\{s\}$. The rotation axis is the line passing through $C=(L,L,0)$ parallel to the $z$-axis.
+	\begin{itemize}
+		\item Angular velocity: $\omega_s = [0, 0, \dot{\theta}]^T$.
+		\item Linear component $v_s = -\omega_s \times \vec{p}_C = -[0, 0, \dot{\theta}]^T \times [L, L, 0]^T = [\dot{\theta}L, -\dot{\theta}L, 0]^T$.
+	\end{itemize}
+	\begin{equation}
+		\ \mathcal{V}_s = \begin{bmatrix} 0 & 0 & \dot{\theta} & \dot{\theta}L & -\dot{\theta}L & 0 \end{bmatrix}^T
+	\end{equation}
+	
+	\textbf{Body Twist ($\mathcal{V}_b$):}
+	The body twist represents the generalized velocity expressed in the body frame $\{b\}$. The screw axis is the same physical axis (through $C$), but we must express the point $C$ in the body frame coordinates.
+	\begin{itemize}
+		\item In the body frame $\{b\}$ (located at $P$), the center of rotation $C$ is at coordinates $\vec{q}_b = [0, d, 0]^T$.
+		\item Angular velocity: $\omega_b = [0, 0, \dot{\theta}]^T$.
+		\item Linear component $v_b = -\omega_b \times \vec{q}_b = -[0, 0, \dot{\theta}]^T \times [0, d, 0]^T = [\dot{\theta}d, 0, 0]^T$.
+	\end{itemize}
+	\begin{equation}
+		\ \mathcal{V}_b = \begin{bmatrix} 0 & 0 & \dot{\theta} & \dot{\theta}d & 0 & 0 \end{bmatrix}^T
+	\end{equation}
+	
+	\subsection*{2.4 Relationship between Twists}
+	
+	The spatial twist and body twist are related by the Adjoint map of the transformation matrix $T_{sb}$ \cite{source:10}:
+	\begin{equation}
+		\ \mathcal{V}_s = [\text{Ad}_{T_{sb}}] \mathcal{V}_b
+	\end{equation}
+	This verifies that the twist derived from the spatial geometry matches the twist derived from the body geometry when transformed mathematically.
+	
+	\bibliographystyle{plain}
+	\bibliography{references}
+	
+\end{document}
