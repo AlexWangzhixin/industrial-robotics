@@ -1,6 +1,5 @@
 function [thetalist, success] = IKinBodyIterative(Blist, M, Tsd, thetalist0, eomg, ev)
-% EXERCISE 1.2: Numerical Inverse Kinematics Implementation
-% Uses the Newton-Raphson method with Body Jacobian
+% ENumerical Inverse Kinematics Implementation
 %
 % Inputs:
 %   Blist: Body screw axes list (6xn matrix)
@@ -13,15 +12,15 @@ function [thetalist, success] = IKinBodyIterative(Blist, M, Tsd, thetalist0, eom
 % Outputs:
 %   thetalist: Joint angles solution
 %   success: Logical true if converged, false otherwise
-
-    % Add library path if needed
-    % addpath('../编程库/Industrial_Robotics_Library');
+    
+    addpath('../Industrial_Robotics_Library/');
 
     thetalist = thetalist0;
     i = 0;
     maxiterations = 20; % Set a reasonable limit
     
     % Step 2: Compute FK for initial guess
+    
     Tsb = FKinBody(M, Blist, thetalist);
     
     % Step 3: Compute Error Twist Vb in Body Frame
@@ -42,6 +41,8 @@ function [thetalist, success] = IKinBodyIterative(Blist, M, Tsd, thetalist0, eom
         thetalist = thetalist + pinv(Jb) * Vb;
         
         % Recalculate FK and Error for next iteration
+        % M: Home configuration of end-effector
+        % Tsd: Desired end-effector configuration
         Tsb = FKinBody(M, Blist, thetalist);
         Vb = se3ToVec(MatrixLog6(TransInv(Tsb) * Tsd));
         err = norm(Vb(1:3)) > eomg || norm(Vb(4:6)) > ev;
