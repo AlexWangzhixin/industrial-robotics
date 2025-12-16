@@ -61,3 +61,30 @@ for i = 1: N
        pstart + s * (pend - pstart); 0, 0, 0, 1];
 end
 end
+
+function [s, sdot] = CubicTimeScaling(Tf, t)
+    % Inputs: Tf = Total time, t = Current time
+    % Outputs: s = Path parameter, sdot = Time derivative
+    
+    % Clamp t to [0, Tf]
+    t = max(0, min(Tf, t));
+    
+    % Peak velocity v_max occurs at Tf/2
+    % Area under velocity triangle must be 1.
+    % 0.5 * base * height = 1 => 0.5 * Tf * v_max = 1 => v_max = 2/Tf
+    v_max = 2 / Tf;
+    
+    if t <= Tf / 2
+        % Acceleration Phase
+        % v(t) = m*t, where m = v_max / (Tf/2) = 4/Tf^2
+        sdot = (4 / Tf^2) * t;
+        s = (2 / Tf^2) * t^2;
+    else
+        % Deceleration Phase
+        % Symmetric to acceleration
+        sdot = v_max - (4 / Tf^2) * (t - Tf/2);
+        % s(t) = 1 - (distance remaining)
+        time_left = Tf - t;
+        s = 1 - (2 / Tf^2) * time_left^2;
+    end
+end

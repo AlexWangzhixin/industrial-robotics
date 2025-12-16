@@ -4,7 +4,7 @@
 % Description: Kinematics, Jacobian, IK, and Trajectory for 6-DOF Humanoid Arm
 
 clear; clc; close all;
-addpath(genpath('.')); % Ensure library is in path
+addpath('../Industrial_Robotics_Library');
 
 %% --- 1. Robot Definition (Exercise 5.1) ---
 fprintf('=== Exercise 5.1: Robot Model & Workspace ===\n');
